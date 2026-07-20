@@ -42,8 +42,9 @@
 
       <div class="example-note hidden" id="exampleNote">
         <strong>Example ticket:</strong> 250 of material <span class="mono">10498</span> (granulated sugar),
-        lot <span class="mono">S340C</span>, used today during shift 3 on Processing B and Processing C.
-        Press <strong>Save entry</strong> to log it, or <strong>Clear</strong> to start fresh.
+        lot <span class="mono">S340C</span>, used today during shift 3 on Processing B and Processing C,
+        with a note attached. Add your name, then press <strong>Save entry</strong> to log it — or
+        <strong>Clear</strong> to start fresh.
       </div>
 
       <div class="field">
@@ -91,6 +92,17 @@
         <div class="board" id="board"></div>
       </div>
 
+      <div class="noterow">
+        <div class="field">
+          <label class="flabel" for="nameInput">Entered by</label>
+          <input id="nameInput" class="input" placeholder="Your name" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="flabel" for="noteInput">Notes — optional</label>
+          <textarea id="noteInput" class="input" rows="2" placeholder="Anything worth noting — e.g. why the discrepancy happened"></textarea>
+        </div>
+      </div>
+
       <div class="err hidden" id="errBox"></div>
 
       <div class="actions">
@@ -110,7 +122,7 @@
       </div>
 
       <div class="filters">
-        <input id="searchInput" class="input" placeholder="Search code, material, or lot…" />
+        <input id="searchInput" class="input" placeholder="Search code, material, lot, or name…" />
         <select id="lineFilter" class="input">
           <option value="">All lines</option>
         </select>

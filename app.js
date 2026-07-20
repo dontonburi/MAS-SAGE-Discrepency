@@ -53,6 +53,7 @@
   var SHARED = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
   var TABLE = cfg.TABLE || "usage_entries";
   var LS_KEY = "material-usage-entries";
+  var NAME_KEY = "material-usage-name";
 
   // Every adapter returns entries shaped: {id, code, desc, qty, date, lines[], ts}
   var store;
@@ -67,6 +68,7 @@
       return {
         id: r.id, code: r.code, desc: r.description, qty: Number(r.qty),
         lot: r.lot || "", shift: r.shift == null ? null : Number(r.shift),
+        by: r.entered_by || "", note: r.note || "",
         date: r.used_on, lines: r.lines || [], ts: Date.parse(r.created_at) || Date.now(),
       };
     };
@@ -78,7 +80,7 @@
           .then(function (rows) { return rows.map(norm); });
       },
       save: function (e) {
-        var body = JSON.stringify([{ code: e.code, description: e.desc, qty: e.qty, lot: e.lot || null, shift: e.shift, used_on: e.date, lines: e.lines }]);
+        var body = JSON.stringify([{ code: e.code, description: e.desc, qty: e.qty, lot: e.lot || null, shift: e.shift, entered_by: e.by || null, note: e.note || null, used_on: e.date, lines: e.lines }]);
         return fetch(BASE, {
           method: "POST",
           headers: Object.assign({ Prefer: "return=representation" }, HEADERS),
@@ -125,6 +127,7 @@
   /* ---------------- init ---------------- */
   function init() {
     $("dateInput").value = todayStr();
+    try { $("nameInput").value = localStorage.getItem(NAME_KEY) || ""; } catch (e) {}
     $("matCount").textContent = MATERIALS.length.toLocaleString("en-US");
 
     setStatus(store.shared ? "loading" : "local");
@@ -267,7 +270,7 @@
 
   /* ---------------- form actions ---------------- */
   function syncClearBtn() {
-    var dirty = S.sel || $("matInput").value || $("qtyInput").value || $("lotInput").value || S.shift || S.linesSel.length;
+    var dirty = S.sel || $("matInput").value || $("qtyInput").value || $("lotInput").value || $("noteInput").value || S.shift || S.linesSel.length;
     $("clearBtn").classList.toggle("hidden", !dirty);
   }
   function showErr(msg) { var b = $("errBox"); b.textContent = msg; b.classList.remove("hidden"); }
@@ -291,6 +294,7 @@
     syncShift();
     S.linesSel = ["Processing B", "Processing C"];
     syncBoard();
+    $("noteInput").value = "Found during batch reconcile — 250 short on MAS.";
     $("exampleNote").classList.remove("hidden");
     hideErr();
   }
@@ -299,6 +303,7 @@
     $("matInput").value = "";
     $("lotInput").value = "";
     $("qtyInput").value = "";
+    $("noteInput").value = "";
     $("dateInput").value = todayStr();
     S.shift = null;
     syncShift();
@@ -318,6 +323,7 @@
     if (!qty || Number(qty) <= 0) missing.push("a quantity");
     if (!date) missing.push("a date");
     if (!S.shift) missing.push("a shift");
+    if (!$("nameInput").value.trim()) missing.push("your name");
     if (S.linesSel.length === 0) missing.push("at least one line");
     if (missing.length) { showErr("Add " + missing.join(", ") + "."); return; }
     hideErr();
@@ -325,6 +331,7 @@
     var entry = {
       code: S.sel.c, desc: S.sel.d, qty: Number(qty), date: date,
       lot: $("lotInput").value.trim(), shift: S.shift,
+      by: $("nameInput").value.trim(), note: $("noteInput").value.trim(),
       lines: ALL_LINES.filter(function (l) { return S.linesSel.indexOf(l) !== -1; }),
     };
     S.saving = true;
@@ -336,6 +343,8 @@
       $("matInput").value = "";
       $("lotInput").value = "";
       $("qtyInput").value = "";
+      $("noteInput").value = "";
+      try { localStorage.setItem(NAME_KEY, saved.by || ""); } catch (e2) {}
       $("exampleNote").classList.add("hidden");
       renderLog();
       syncClearBtn();
@@ -357,7 +366,7 @@
     var q = S.ftext.trim().toUpperCase();
     return S.entries.filter(function (e) {
       if (S.fline && (e.lines || []).indexOf(S.fline) === -1) return false;
-      if (q && (e.code + " " + e.desc + " " + (e.lot || "")).toUpperCase().indexOf(q) === -1) return false;
+      if (q && (e.code + " " + e.desc + " " + (e.lot || "") + " " + (e.by || "") + " " + (e.note || "")).toUpperCase().indexOf(q) === -1) return false;
       return true;
     }).sort(function (a, b) {
       if (a.date < b.date) return 1;
@@ -388,7 +397,9 @@
         : '<button type="button" class="ghost sm" data-ask="' + esc(e.id) + '">Delete</button>';
       var lot = e.lot ? '<span class="mono row-lot">Lot ' + esc(e.lot) + "</span>" : "";
       var meta = (e.shift ? "Shift " + esc(e.shift) + " · " : "") +
-        "Used " + esc(fmtDate(e.date)) + " · logged " + esc(fmtTime(e.ts));
+        "Used " + esc(fmtDate(e.date)) + " · logged " + esc(fmtTime(e.ts)) +
+        (e.by ? " by " + esc(e.by) : "");
+      var note = e.note ? '<div class="row-note">' + esc(e.note) + "</div>" : "";
       return '<article class="row">' +
         '<div class="row-top"><span class="mono row-code">' + esc(e.code) + '</span>' + lot +
         '<span class="row-desc">' + esc(e.desc) + '</span>' +
@@ -396,7 +407,7 @@
         '<div class="row-bot"><div class="row-chips">' + tags + "</div>" +
         '<span class="meta">' + meta + "</span>" +
         '<div class="row-actions"><button type="button" class="ghost sm" data-reuse="' + esc(e.id) +
-        '" title="Refill the form with this material and lines">Reuse</button>' + del + "</div></div></article>";
+        '" title="Refill the form with this material and lines">Reuse</button>' + del + "</div></div>" + note + "</article>";
     }).join("") + "</div>";
   }
 
@@ -444,9 +455,9 @@
   function exportCsv() {
     var vis = visibleEntries();
     var cell = function (v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; };
-    var rows = [["Date used", "Material code", "Description", "Lot", "Quantity", "Shift", "Lines", "Logged at"]];
+    var rows = [["Date used", "Material code", "Description", "Lot", "Quantity", "Shift", "Lines", "Entered by", "Notes", "Logged at"]];
     vis.forEach(function (e) {
-      rows.push([e.date, e.code, e.desc, e.lot || "", e.qty, e.shift || "", (e.lines || []).join("; "), new Date(e.ts).toLocaleString()]);
+      rows.push([e.date, e.code, e.desc, e.lot || "", e.qty, e.shift || "", (e.lines || []).join("; "), e.by || "", e.note || "", new Date(e.ts).toLocaleString()]);
     });
     var csv = rows.map(function (r) { return r.map(cell).join(","); }).join("\r\n");
     var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -502,6 +513,7 @@
 
     $("qtyInput").addEventListener("input", syncClearBtn);
     $("lotInput").addEventListener("input", syncClearBtn);
+    $("noteInput").addEventListener("input", syncClearBtn);
     $("shiftGroup").addEventListener("click", function (e) {
       var b = e.target.closest(".chip");
       if (!b) return;

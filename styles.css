@@ -83,6 +83,9 @@ h1 {
 .input:focus { border-color: var(--steel); outline: none; }
 .input.mono { font-family: "IBM Plex Mono"; font-weight: 500; }
 .quad { display: grid; grid-template-columns: 1.1fr 0.9fr 1.1fr auto; gap: 14px; }
+.noterow { display: grid; grid-template-columns: 220px 1fr; gap: 14px; }
+@media (max-width: 760px) { .noterow { grid-template-columns: 1fr; } }
+textarea.input { resize: vertical; min-height: 42px; line-height: 1.4; }
 @media (max-width: 760px) { .quad { grid-template-columns: 1fr 1fr; } }
 .shift-group { display: flex; gap: 6px; }
 .chip.shift {
@@ -193,6 +196,7 @@ h1 {
   border: 1px solid var(--line); border-radius: 4px; background: #f4f5f0; color: #3b4a55;
 }
 .meta { font-size: 12.5px; color: var(--muted); margin-left: auto; }
+.row-note { margin-top: 7px; padding-top: 6px; border-top: 1px dashed #e9ebe4; font-size: 13px; color: #4a5a65; }
 .row-actions { display: flex; gap: 6px; }
 .empty {
   border: 1.5px dashed var(--line); border-radius: 8px; padding: 26px 18px;
