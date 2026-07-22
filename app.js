@@ -22,6 +22,9 @@
       ],
     },
   ];
+  // Team roster shown in the "Entered by" dropdown — edit names here.
+  var TEAM = ["Dafne", "Marlen", "Marina", "Brooklyn"];
+
   var ALL_LINES = [];
   LINE_GROUPS.forEach(function (g) { g.items.forEach(function (it) { ALL_LINES.push(it[0]); }); });
 
@@ -34,6 +37,11 @@
   function pad(n) { return String(n).padStart(2, "0"); }
   function todayStr() {
     var d = new Date();
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+  function yesterdayStr() {
+    var d = new Date();
+    d.setDate(d.getDate() - 1);
     return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
   }
   function fmtDate(s) {
@@ -67,7 +75,8 @@
     var norm = function (r) {
       return {
         id: r.id, code: r.code, desc: r.description, qty: Number(r.qty),
-        lot: r.lot || "", shift: r.shift == null ? null : Number(r.shift),
+        lot: r.lot || "",
+        shifts: (r.shifts && r.shifts.length ? r.shifts : (r.shift == null ? [] : [r.shift])).map(Number),
         by: r.entered_by || "", note: r.note || "", rectified: !!r.rectified,
         date: r.used_on, lines: r.lines || [], ts: Date.parse(r.created_at) || Date.now(),
       };
@@ -80,7 +89,7 @@
           .then(function (rows) { return rows.map(norm); });
       },
       save: function (e) {
-        var body = JSON.stringify([{ code: e.code, description: e.desc, qty: e.qty, lot: e.lot || null, shift: e.shift, entered_by: e.by || null, note: e.note || null, used_on: e.date, lines: e.lines }]);
+        var body = JSON.stringify([{ code: e.code, description: e.desc, qty: e.qty, lot: e.lot || null, shifts: e.shifts, entered_by: e.by || null, note: e.note || null, used_on: e.date, lines: e.lines }]);
         return fetch(BASE, {
           method: "POST",
           headers: Object.assign({ Prefer: "return=representation" }, HEADERS),
@@ -118,9 +127,13 @@
       } catch (e) { return []; }
     };
     var lsWrite = function (list) { localStorage.setItem(LS_KEY, JSON.stringify(list)); };
+    var legacyShifts = function (e) {
+      if (e.shifts) return e;
+      return Object.assign({}, e, { shifts: e.shift == null ? [] : [Number(e.shift)] });
+    };
     store = {
       shared: false,
-      load: function () { return Promise.resolve(lsRead()); },
+      load: function () { return Promise.resolve(lsRead().map(legacyShifts)); },
       save: function (e) {
         var entry = Object.assign({}, e, { id: uid(), ts: Date.now() });
         var list = lsRead(); list.push(entry); lsWrite(list);
@@ -139,15 +152,24 @@
 
   /* ---------------- state ---------------- */
   var S = {
-    entries: [], sel: null, linesSel: [], shift: null, shown: [], hi: 0,
+    entries: [], sel: null, linesSel: [], shifts: [], copySel: {}, shown: [], hi: 0,
     confirmId: null, confirmTimer: null, toastTimer: null, saving: false,
     ftext: "", fline: "",
   };
 
   /* ---------------- init ---------------- */
   function init() {
-    $("dateInput").value = todayStr();
-    try { $("nameInput").value = localStorage.getItem(NAME_KEY) || ""; } catch (e) {}
+    $("dateInput").value = yesterdayStr();
+    var nameSel = $("nameSelect");
+    nameSel.innerHTML = '<option value="">Select name\u2026</option>' +
+      TEAM.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + "</option>"; }).join("") +
+      '<option value="__other">Other \u2014 type name</option>';
+    var storedName = "";
+    try { storedName = localStorage.getItem(NAME_KEY) || ""; } catch (e) {}
+    if (storedName) {
+      if (TEAM.indexOf(storedName) !== -1) nameSel.value = storedName;
+      else { nameSel.value = "__other"; $("nameOther").value = storedName; $("nameOther").classList.remove("hidden"); }
+    }
     $("matCount").textContent = MATERIALS.length.toLocaleString("en-US");
 
     setStatus(store.shared ? "loading" : "local");
@@ -180,6 +202,11 @@
     if (store.shared) $("refreshBtn").classList.remove("hidden");
   }
 
+  function getName() {
+    var v = $("nameSelect").value;
+    return v === "__other" ? $("nameOther").value.trim() : v;
+  }
+
   /* ---------------- line board ---------------- */
   function buildBoard() {
     var html = LINE_GROUPS.map(function (g) {
@@ -204,10 +231,10 @@
     syncClearBtn();
   }
 
-  function syncShift() {
+  function syncShifts() {
     var btns = $("shiftGroup").querySelectorAll(".chip");
     btns.forEach(function (b) {
-      var on = Number(b.getAttribute("data-shift")) === S.shift;
+      var on = S.shifts.indexOf(Number(b.getAttribute("data-shift"))) !== -1;
       b.classList.toggle("on", on);
       b.setAttribute("aria-pressed", on ? "true" : "false");
     });
@@ -290,7 +317,7 @@
 
   /* ---------------- form actions ---------------- */
   function syncClearBtn() {
-    var dirty = S.sel || $("matInput").value || $("qtyInput").value || $("lotInput").value || $("noteInput").value || S.shift || S.linesSel.length;
+    var dirty = S.sel || $("matInput").value || $("qtyInput").value || $("lotInput").value || $("noteInput").value || S.shifts.length || S.linesSel.length;
     $("clearBtn").classList.toggle("hidden", !dirty);
   }
   function showErr(msg) { var b = $("errBox"); b.textContent = msg; b.classList.remove("hidden"); }
@@ -309,9 +336,9 @@
     pickMaterial(m || MATERIALS[0]);
     $("lotInput").value = "S340C";
     $("qtyInput").value = "250";
-    $("dateInput").value = todayStr();
-    S.shift = 3;
-    syncShift();
+    $("dateInput").value = yesterdayStr();
+    S.shifts = [3];
+    syncShifts();
     S.linesSel = ["Processing B", "Processing C"];
     syncBoard();
     $("noteInput").value = "Found during batch reconcile — 250 short on MAS.";
@@ -324,9 +351,9 @@
     $("lotInput").value = "";
     $("qtyInput").value = "";
     $("noteInput").value = "";
-    $("dateInput").value = todayStr();
-    S.shift = null;
-    syncShift();
+    $("dateInput").value = yesterdayStr();
+    S.shifts = [];
+    syncShifts();
     S.linesSel = [];
     syncBoard();
     $("exampleNote").classList.add("hidden");
@@ -342,16 +369,16 @@
     if (!S.sel) missing.push("a material");
     if (!qty || Number(qty) <= 0) missing.push("a quantity");
     if (!date) missing.push("a date");
-    if (!S.shift) missing.push("a shift");
-    if (!$("nameInput").value.trim()) missing.push("your name");
+    if (!S.shifts.length) missing.push("a shift");
+    if (!getName()) missing.push("your name");
     if (S.linesSel.length === 0) missing.push("at least one line");
     if (missing.length) { showErr("Add " + missing.join(", ") + "."); return; }
     hideErr();
 
     var entry = {
       code: S.sel.c, desc: S.sel.d, qty: Number(qty), date: date,
-      lot: $("lotInput").value.trim(), shift: S.shift,
-      by: $("nameInput").value.trim(), note: $("noteInput").value.trim(), rectified: false,
+      lot: $("lotInput").value.trim(), shifts: S.shifts.slice().sort(),
+      by: getName(), note: $("noteInput").value.trim(), rectified: false,
       lines: ALL_LINES.filter(function (l) { return S.linesSel.indexOf(l) !== -1; }),
     };
     S.saving = true;
@@ -410,6 +437,16 @@
     });
   }
 
+  function updateCopyLabel(vis) {
+    var selCount = vis.filter(function (e) { return S.copySel[e.id]; }).length;
+    $("copyTableBtn").textContent = selCount
+      ? "Copy table (" + selCount + " selected)"
+      : "Copy table (" + vis.length + ")";
+    $("copyTableBtn").disabled = vis.length === 0;
+    var all = $("selAll");
+    if (all) all.checked = vis.length > 0 && selCount === vis.length;
+  }
+
   function renderLog() {
     var area = $("logArea");
     var vis = visibleEntries();
@@ -417,17 +454,18 @@
     $("entryCount").textContent = n + (n === 1 ? " entry" : " entries");
     $("exportBtn").textContent = "Export CSV (" + vis.length + ")";
     $("exportBtn").disabled = vis.length === 0;
-    $("copyTableBtn").textContent = "Copy table (" + vis.length + ")";
-    $("copyTableBtn").disabled = vis.length === 0;
+
 
     if (vis.length === 0) {
       area.innerHTML = '<div class="empty">' + (n === 0
         ? "No usage logged yet. Fill out the ticket above — or press <strong>Load example</strong> to see how one is filled."
         : "No entries match these filters.") + "</div>";
+      updateCopyLabel(vis);
       return;
     }
 
-    var HEADS = '<th class="c-r"></th><th class="c-date">Batch/Production date</th><th>Item (MAS)</th>' +
+    var HEADS = '<th class="c-sel"><input type="checkbox" id="selAll" title="Select all shown" /></th>' +
+      '<th class="c-r"></th><th class="c-date">Batch/Production date</th><th>Item (MAS)</th>' +
       '<th>Lot code</th><th>Description</th><th>Line</th><th>Shift</th><th class="c-qty">Qtty missing</th>' +
       '<th>Note</th><th>Name</th><th></th>';
     area.innerHTML = '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + HEADS + "</tr></thead><tbody>" +
@@ -438,20 +476,22 @@
         var del = S.confirmId === e.id
           ? '<button type="button" class="ghost sm danger" data-del="' + esc(e.id) + '">Confirm delete</button>'
           : '<button type="button" class="ghost sm" data-ask="' + esc(e.id) + '">Delete</button>';
-        return '<tr class="' + (e.rectified ? "done" : "") + '">' +
+        return '<tr class="' + (e.rectified ? "done" : "") + (S.copySel[e.id] ? " picked" : "") + '">' +
+          '<td class="c-sel"><input type="checkbox" data-sel="' + esc(e.id) + '"' + (S.copySel[e.id] ? " checked" : "") + ' /></td>' +
           '<td class="c-r">' + rect + "</td>" +
           '<td class="c-date">' + esc(fmtDate(e.date)) + "</td>" +
           '<td class="c-code">' + esc(e.code) + "</td>" +
           '<td class="c-lot">' + esc(e.lot || "") + "</td>" +
           '<td class="c-desc">' + esc(e.desc) + "</td>" +
           '<td class="c-line">' + esc((e.lines || []).join(", ")) + "</td>" +
-          "<td>" + esc(e.shift || "") + "</td>" +
+          "<td>" + esc((e.shifts || []).join(", ")) + "</td>" +
           '<td class="c-qty">' + esc(fmtQty(e.qty)) + "</td>" +
           '<td class="c-note">' + esc(e.note || "") + "</td>" +
           "<td>" + esc(e.by || "") + "</td>" +
           '<td class="c-act"><button type="button" class="ghost sm" data-reuse="' + esc(e.id) +
           '" title="Refill the form with this material and lines">Reuse</button>' + del + "</td></tr>";
       }).join("") + "</tbody></table></div>";
+    updateCopyLabel(vis);
   }
 
   function removeEntry(id) {
@@ -459,6 +499,7 @@
     clearTimeout(S.confirmTimer);
     store.remove(id).then(function () {
       S.entries = S.entries.filter(function (e) { return e.id !== id; });
+      delete S.copySel[id];
       renderLog();
       toast("Entry deleted");
     }).catch(function () {
@@ -476,7 +517,7 @@
     syncBoard();
     $("lotInput").value = e.lot || "";
     $("qtyInput").value = "";
-    $("dateInput").value = todayStr();
+    $("dateInput").value = yesterdayStr();
     $("exampleNote").classList.add("hidden");
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(function () { $("qtyInput").focus(); }, 350);
@@ -497,12 +538,14 @@
   }
 
   function copyTable() {
-    var vis = visibleEntries();
+    var pool = visibleEntries();
+    var chosen = pool.filter(function (e) { return S.copySel[e.id]; });
+    var vis = chosen.length ? chosen : pool;
     if (!vis.length) return;
     var clean = function (c) { return String(c == null ? "" : c).replace(/[\t\n\r]+/g, " "); };
     var head = ["Batch/Production date", "Item (MAS)", "Lot code", "Description", "Line", "Shift", "Qtty missing", "Note", "Name"];
     var data = vis.map(function (e) {
-      return [e.date, e.code, e.lot || "", e.desc, (e.lines || []).join(", "), e.shift || "", fmtQty(e.qty), e.note || "", e.by || ""];
+      return [e.date, e.code, e.lot || "", e.desc, (e.lines || []).join(", "), (e.shifts || []).join(", "), fmtQty(e.qty), e.note || "", e.by || ""];
     });
     var title = "MAS material adjustments for approval (" + vis.length + ")";
     var tsv = title + "\n" + [head].concat(data).map(function (r) { return r.map(clean).join("\t"); }).join("\n");
@@ -544,7 +587,7 @@
     var cell = function (v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; };
     var rows = [["Batch/Production date", "Item (MAS)", "Lot code", "Description", "Line", "Shift", "Qtty missing", "Note", "Name", "Rectified", "Logged at"]];
     vis.forEach(function (e) {
-      rows.push([e.date, e.code, e.lot || "", e.desc, (e.lines || []).join("; "), e.shift || "", e.qty, e.note || "", e.by || "", e.rectified ? "Yes" : "", new Date(e.ts).toLocaleString()]);
+      rows.push([e.date, e.code, e.lot || "", e.desc, (e.lines || []).join("; "), (e.shifts || []).join(", "), e.qty, e.note || "", e.by || "", e.rectified ? "Yes" : "", new Date(e.ts).toLocaleString()]);
     });
     var csv = rows.map(function (r) { return r.map(cell).join(","); }).join("\r\n");
     var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -605,9 +648,17 @@
       var b = e.target.closest(".chip");
       if (!b) return;
       var v = Number(b.getAttribute("data-shift"));
-      S.shift = S.shift === v ? null : v;
-      syncShift();
+      var i = S.shifts.indexOf(v);
+      if (i === -1) S.shifts.push(v); else S.shifts.splice(i, 1);
+      S.shifts.sort();
+      syncShifts();
     });
+    $("nameSelect").addEventListener("change", function () {
+      $("nameOther").classList.toggle("hidden", this.value !== "__other");
+      if (this.value === "__other") $("nameOther").focus();
+      syncClearBtn();
+    });
+    $("nameOther").addEventListener("input", syncClearBtn);
     $("saveBtn").addEventListener("click", saveEntry);
     $("clearBtn").addEventListener("click", clearForm);
     $("exampleBtn").addEventListener("click", loadExample);
@@ -619,6 +670,22 @@
     $("lineFilter").addEventListener("change", function () { S.fline = this.value; renderLog(); });
 
     $("logArea").addEventListener("click", function (e) {
+      var t = e.target;
+      if (t && t.id === "selAll") {
+        var visNow = visibleEntries();
+        var on = t.checked;
+        visNow.forEach(function (en) { if (on) S.copySel[en.id] = true; else delete S.copySel[en.id]; });
+        renderLog();
+        return;
+      }
+      if (t && t.getAttribute && t.getAttribute("data-sel")) {
+        var sid = t.getAttribute("data-sel");
+        if (t.checked) S.copySel[sid] = true; else delete S.copySel[sid];
+        var tr = t.closest("tr");
+        if (tr) tr.classList.toggle("picked", t.checked);
+        updateCopyLabel(visibleEntries());
+        return;
+      }
       var b = e.target.closest("button");
       if (!b) return;
       if (b.hasAttribute("data-rect")) { toggleRect(b.getAttribute("data-rect")); return; }

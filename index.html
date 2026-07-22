@@ -42,7 +42,7 @@
 
       <div class="example-note hidden" id="exampleNote">
         <strong>Example ticket:</strong> 250 of material <span class="mono">10498</span> (granulated sugar),
-        lot <span class="mono">S340C</span>, used today during shift 3 on Processing B and Processing C,
+        lot <span class="mono">S340C</span>, used yesterday during shift 3 on Processing B and Processing C,
         with a note attached. Add your name, then press <strong>Save entry</strong> to log it — or
         <strong>Clear</strong> to start fresh.
       </div>
@@ -94,8 +94,9 @@
 
       <div class="noterow">
         <div class="field">
-          <label class="flabel" for="nameInput">Entered by</label>
-          <input id="nameInput" class="input" placeholder="Your name" autocomplete="off" />
+          <label class="flabel" for="nameSelect">Entered by</label>
+          <select id="nameSelect" class="input"></select>
+          <input id="nameOther" class="input hidden" placeholder="Type your name" autocomplete="off" />
         </div>
         <div class="field">
           <label class="flabel" for="noteInput">Notes — optional</label>
@@ -111,6 +112,9 @@
       </div>
     </section>
 
+  </main>
+
+  <div class="main wide">
     <!-- ================= usage log ================= -->
     <section class="card">
       <div class="card-head">
@@ -136,7 +140,7 @@
       Item list: <span id="matCount">…</span> material codes loaded from the BOM &amp; MAS item list.
       Unlisted codes can still be logged — they're marked &ldquo;not in item list.&rdquo;
     </p>
-  </main>
+  </div>
 
   <div class="toast hidden" id="toast"></div>
 

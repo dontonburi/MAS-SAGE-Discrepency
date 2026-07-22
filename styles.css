@@ -29,7 +29,7 @@ button { font: inherit; cursor: pointer; background: none; border: none; color: 
 /* header */
 .head { background: var(--steel); color: var(--head-text); border-bottom: 3px solid var(--amber); }
 .head-inner {
-  max-width: 880px; margin: 0 auto; padding: 20px 20px 16px;
+  max-width: none; margin: 0 auto; padding: 20px 24px 16px;
   display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap;
 }
 .brand { display: flex; align-items: center; gap: 10px; }
@@ -54,9 +54,10 @@ h1 {
 
 /* layout */
 .main {
-  max-width: 880px; margin: 0 auto; padding: 22px 20px 60px;
+  max-width: 880px; margin: 0 auto; padding: 22px 20px 0;
   display: flex; flex-direction: column; gap: 18px;
 }
+.main.wide { max-width: none; padding: 18px 24px 60px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 18px 20px; }
 .card-head {
   display: flex; justify-content: space-between; align-items: center;
@@ -89,6 +90,7 @@ h1 {
 textarea.input { resize: vertical; min-height: 41px; height: 41px; line-height: 1.35; }
 @media (max-width: 760px) { .quad { grid-template-columns: 1fr 1fr; } }
 .shift-group { display: flex; gap: 6px; }
+#nameOther { margin-top: 6px; }
 .chip.shift {
   justify-content: center; min-width: 44px; padding: 9px 0;
   font-family: "IBM Plex Mono"; font-size: 15px; letter-spacing: 0;
@@ -192,6 +194,9 @@ textarea.input { resize: vertical; min-height: 41px; height: 41px; line-height: 
 .tbl td { padding: 7px 10px; border-bottom: 1px solid #eceee7; vertical-align: top; }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl tr.done td { background: #f1f7f3; }
+.tbl tr.picked td { background: var(--amber-soft); }
+.c-sel { width: 30px; }
+.c-sel input { width: 15px; height: 15px; accent-color: var(--steel); cursor: pointer; vertical-align: middle; }
 .c-r { width: 34px; }
 .c-date { white-space: nowrap; }
 .c-code, .c-lot { font-family: "IBM Plex Mono"; font-weight: 500; white-space: nowrap; }
