@@ -179,7 +179,7 @@ textarea.input { resize: vertical; min-height: 41px; height: 41px; line-height: 
 }
 
 /* log */
-.filters { display: grid; grid-template-columns: 1fr 220px; gap: 10px; margin-bottom: 14px; }
+.filters { display: grid; grid-template-columns: 1fr 170px 220px; gap: 10px; margin-bottom: 14px; }
 @media (max-width: 560px) { .filters { grid-template-columns: 1fr; } }
 /* usage log table */
 .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
@@ -193,10 +193,9 @@ textarea.input { resize: vertical; min-height: 41px; height: 41px; line-height: 
 .tbl th.c-qty { text-align: right; }
 .tbl td { padding: 7px 10px; border-bottom: 1px solid #eceee7; vertical-align: top; }
 .tbl tr:last-child td { border-bottom: none; }
-.tbl tr.done td { background: #f1f7f3; }
-.tbl tbody tr { cursor: pointer; }
-.tbl tr.picked td { background: var(--amber-soft); }
-.tbl tr.picked td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+.tbl tr.is-done > td { background: #f1f7f3; }
+.tbl tbody tr { display: table-row; cursor: pointer; }
+.tbl tr.is-sel > td { background: var(--amber-soft); }
 .c-sel { width: 30px; }
 .c-sel input { width: 15px; height: 15px; accent-color: var(--steel); cursor: pointer; vertical-align: middle; }
 .c-r { width: 34px; }

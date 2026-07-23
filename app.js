@@ -154,7 +154,7 @@
   var S = {
     entries: [], sel: null, linesSel: [], shifts: [], copySel: {}, shown: [], hi: 0,
     confirmId: null, confirmTimer: null, toastTimer: null, saving: false,
-    ftext: "", fline: "",
+    ftext: "", fline: "", fdate: "",
   };
 
   /* ---------------- init ---------------- */
@@ -427,6 +427,7 @@
   function visibleEntries() {
     var q = S.ftext.trim().toUpperCase();
     return S.entries.filter(function (e) {
+      if (S.fdate && e.date !== S.fdate) return false;
       if (S.fline && (e.lines || []).indexOf(S.fline) === -1) return false;
       if (q && (e.code + " " + e.desc + " " + (e.lot || "") + " " + (e.by || "") + " " + (e.note || "")).toUpperCase().indexOf(q) === -1) return false;
       return true;
@@ -454,7 +455,7 @@
   function setRowSel(id, on, tr) {
     if (on) S.copySel[id] = true; else delete S.copySel[id];
     if (tr) {
-      tr.classList.toggle("picked", on);
+      tr.classList.toggle("is-sel", on);
       var cb = tr.querySelector("[data-sel]");
       if (cb) cb.checked = on;
     }
@@ -506,8 +507,8 @@
     vis.forEach(function (e) {
       var tr = document.createElement("tr");
       tr.dataset.id = e.id;
-      if (e.rectified) tr.classList.add("done");
-      if (S.copySel[e.id]) tr.classList.add("picked");
+      if (e.rectified) tr.classList.add("is-done");
+      if (S.copySel[e.id]) tr.classList.add("is-sel");
 
       var tdSel = mk("td", "c-sel");
       var cb = document.createElement("input");
@@ -738,6 +739,8 @@
 
     $("searchInput").addEventListener("input", function () { S.ftext = this.value; renderLog(); });
     $("lineFilter").addEventListener("change", function () { S.fline = this.value; renderLog(); });
+    $("dateFilter").addEventListener("input", function () { S.fdate = this.value; renderLog(); });
+    $("dateFilter").addEventListener("change", function () { S.fdate = this.value; renderLog(); });
 
     $("logArea").addEventListener("click", function (e) {
       var t = e.target;
